@@ -32,7 +32,7 @@
 
 ```bash
 # 1. 克隆项目
-git clone https://github.com/your-username/docling-vlm2md.git
+git clone https://github.com/yjryjrhehe/docling-vlm2md.git
 cd docling-vlm2md
 
 # 2. (推荐) 使用 uv 创建虚拟环境

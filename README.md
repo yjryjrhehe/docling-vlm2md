@@ -41,7 +41,7 @@ uv venv
 
 # 3. 激活环境
 # Windows (PowerShell):
-.\.venv\Scripts\Activate.ps1
+.\.venv\Scripts\Activate
 # macOS / Linux (bash):
 source .venv/bin/activate
 

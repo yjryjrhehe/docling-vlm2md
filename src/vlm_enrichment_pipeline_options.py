@@ -20,4 +20,12 @@ class VLMEnrichmentPipelineOptions(PdfPipelineOptions):
 
     # VLM API 调用的最大并发线程数 
     vlm_max_concurrency: int = 5
+
+    # VLM 相关的配置项
+    llm_api_key: Optional[str] = None
+    llm_base_url: Optional[str] = None
+    llm_model: Optional[str] = None
+
+    # llm API 调用的最大并发线程数 
+    llm_max_concurrency: int = 5
     

@@ -12,13 +12,23 @@
 
 
 
-- **公式识别 (Formula Recognition):** 利用 VLM (如 `glm-4v-plus-0111`) 识别 PDF 中的公式图片，并将其自动转换为 `$$...$$` 格式的 LaTeX 代码，替换原有的低质量图像。
-- **图片描述 (Image Description):** 自动为文档中的图片（`PictureItem`）调用 VLM 生成详细的描述性文字（Alt-text），并将描述作为 `DescriptionAnnotation` 注入，提升 Markdown 的无障碍访问性和可索引性。
+- **公式识别 (Formula Recognition) (🔧 更新)**
+
+  - **针对 PDF:** 利用 VLM (如 `glm-4v-plus-0111`) 识别 PDF 中的公式**图片**，并将其自动转换为 `$$...$$` 格式的 LaTeX 代码。
+  - **针对 DOCX (✨ 新增):** 利用纯文本 LLM 解析 Word 文档中的 `FormulaItem.text` (例如 $$a^2 + b^2 = c^2$$)，并将其转换为标准 LaTeX。
+
+  **图片描述 (Image Description) (🔧 更新)**
+
+  - 自动为 **PDF 和 DOCX** 文档中的图片（`PictureItem`）调用 VLM 生成详细的描述性文字（Alt-text），并将描述作为 `DescriptionAnnotation` 注入，提升 Markdown 的无障碍访问性和可索引性。
+  - (✨ 新增) 支持处理 Word 文档中嵌入的 **Visio 绘图**（通过将RGBA转为JEPG格式）。
 - **表格修复 (Table Repair):** 智能检测 PDF 中结构异常或跨页的表格。
   - 对于**正常**表格，直接转换为 Markdown。
   - 对于**异常**表格（如列混乱、跨页断裂），则调用 VLM 进行“截图识别与修复”，将其转换为结构完整的 Markdown 表格。
-- **基于 Docling 框架:** 项目完全构建在 `docling` 管道之上，通过自定义 `VlmEnrichmentPipeline` 和多个 `BaseEnrichmentModel` 实现，逻辑清晰，易于扩展。
+- **基于 Docling 框架 (🔧 更新)**
+
+  - 项目完全构建在 `docling` 管道之上，通过自定义 `VlmEnrichmentPipeline` (用于 PDF) 和 `VlmEnrichmentWordPipeline` (用于 DOCX) (✨ 新增) 以及多个增强模型实现，逻辑清晰，易于扩展。
 - **并发与并行处理:**
+  
   - `main.py`: 提供**同步执行**方法，使用 `ThreadPoolExecutor` 在进程内并发调用 VLM API，适用于中小型文档和调试。
   - `main_parallel.py`: 提供**多进程并行**处理方法，先将大型 PDF 拆分为多个小块，再使用 `ProcessPoolExecutor` 并行处理，极大提升大型文档的转换效率。
 
@@ -66,6 +76,12 @@ VLM:
   base_url: "https://open.bigmodel.cn/api/paas/v4/" # VLM API 的端点 (Endpoint)
   model: "glm-4v-plus-0111" # 你希望使用的多模态模型
   max_concurrency: 5 # 单个进程内VLM API调用的最大并发线程数
+  
+LLM:
+  api_key: "your_api_key"
+  base_url: "https://open.bigmodel.cn/api/paas/v4/"
+  model: "glm-4-flashx-250414"
+  max_concurrency: 5
 ```
 
 > **重要提示:** `max_concurrency` 控制**单个脚本**（如 `main.py`）或**单个并行工作进程**（在 `main_parallel.py` 中）的 API 并发线程数。请根据你的 VLM API 供应商的速率限制（Rate Limit）来设置此值。
@@ -95,7 +111,11 @@ VLM:
 if __name__ == "__main__":
     start = time.time()
     
-    input_doc_path = Path(r"path/to/your/document.pdf")
+    # 既可以处理 PDF:
+    # input_doc_path = Path(r"path/to/your/document.pdf")
+    
+    # 也可以处理 DOCX:
+    input_doc_path = Path(r"path/to/your/document.docx")
     output_md_path = Path(r"path/to/your/output.md")
     
     docs_to_md(input_doc_path, output_md_path)
@@ -184,10 +204,17 @@ python main_parallel.py
 
 
 - **输入:**
-  - `PDF (.pdf)`: **主要支持**，具备 VLM 增强（公式、图片、表格）。
-  - `Word (.docx)`: 提供 `docling` 基础转换支持，但本项目的 VLM 增强模型（如公式识别）目前仅针对 PDF 管道配置。
+  
+  - `PDF (.pdf)`: **主要支持**，具备完整的 VLM 增强（公式、图片、表格）。
+  
+    `Word (.docx)`: **增强支持** (✨ 新增)。
+  
+    - ✅ 图片描述 (VLM)
+    - ✅ Visio 绘图描述 (VLM)
+    - ✅ 公式转换 (LLM 文本转 LaTeX)
+    - ❌ 表格 VLM 修复 (暂不支持)
 - **输出:**
-  - `Markdown (.md)`: 最终输出格式。根据 `main.py` 中的设置 (`ImageRefMode.EMBEDDED`)，所有图片（包括公式）将被转换为 Base64 嵌入 Markdown 中。
+  - `Markdown (.md)`: 最终输出格式。根据 `main.py` 中的设置 (`ImageRefMode.EMBEDDED`)，所有图片（包括公式）将被转换为 Base64 嵌入 Markdown 中。（也可以选择“REFERENCED”模式，会在输出路径中新建文件夹保存所有图片，在输出的md文档中仅保留图片引用路径，）
 
 
 
@@ -198,24 +225,26 @@ python main_parallel.py
 ```
 📦docling-vlm2md
  ┣ 📂src
- ┃ ┣ 📂enrichment_models           # 核心 VLM 增强模型
- ┃ ┃ ┣ 📜formula_enrichment_model.py  # 公式识别模型 (FormulaItem -> LaTeX)
- ┃ ┃ ┣ 📜pic_enrichment_model.py      # 图片描述模型 (PictureItem -> Description)
- ┃ ┃ ┗ 📜table_enrichment_model.py    # 表格修复模型 (TableItem -> Markdown Table)
+ ┃ ┣ 📂enrichment_models           # 核心 VLM/LLM 增强模型
+ ┃ ┃ ┣ 📜formula_enrichment_model.py      # (PDF) 公式VLM识别模型
+ ┃ ┃ ┣ 📜formula_enrichment_model_word.py # (DOCX) 公式LLM转换模型 (✨ 新增)
+ ┃ ┃ ┣ 📜pic_enrichment_model.py          # (PDF/DOCX) 图片VLM描述模型
+ ┃ ┃ ┗ 📜table_enrichment_model.py        # (PDF) 表格VLM修复模型
  ┃ ┣ 📂prompt                        # VLM 提示词 (Prompts)
  ┃ ┃ ┣ 📜formula_recognition_prompt.py
  ┃ ┃ ┣ 📜table_repair_prompt.py
  ┃ ┃ ┗ 📜VLM_prompt.py
- ┃ ┣ 📜vlm_enrichment_pipeline.py     # 自定义 Docling 管道 (VlmEnrichmentPipeline)
+ ┃ ┣ 📜vlm_enrichment_pipeline.py         # (PDF) 自定义 Docling 管道 (✨ 更新)
+ ┃ ┣ 📜vlm_enrichment_pipeline_word.py    # (DOCX) 自定义 Docling 管道 (✨ 新增)
  ┃ ┗ 📜vlm_enrichment_pipeline_options.py # 管道配置项 (VLMEnrichmentPipelineOptions)
  ┣ 📜.gitignore
- ┣ 📜.python-version               # uv 锁定的 Python 版本
- ┣ 📜config.yaml                   # 配置文件 (需用户本地创建)
- ┣ 📜main.py                       # 同步执行入口
- ┣ 📜main_parallel.py              # 多进程并行执行入口
- ┣ 📜pyproject.toml                # 项目元数据和依赖 (uv)
- ┣ 📜README.md                     # 本文档
- ┗ 📜uv.lock                       # uv 依赖锁定文件
+ ┣ 📜.python-version
+ ┣ 📜config.yaml                      # 配置文件 (需用户本地创建)
+ ┣ 📜main.py                          # 同步执行入口 (支持 PDF/DOCX)
+ ┣ 📜main_parallel.py                 # 多进程并行执行入口 (仅支持 PDF)
+ ┣ 📜pyproject.toml
+ ┣ 📜README.md                        # 本文档
+ ┗ 📜uv.lock
 ```
 
 
@@ -224,9 +253,9 @@ python main_parallel.py
 
 
 
-**Q: 为什么我运行 `main.py` 或 `main_parallel.py` 时立即失败并提示 `config.yaml` 未找到？** A: 你需要在项目根目录（与 `main.py` 同级）**手动创建**一个 `config.yaml` 文件，并按照 [配置说明](https://www.google.com/search?q=%23-配置说明-configuration&authuser=2) 部分的格式填入你的 VLM API 密钥和端点。
+**Q: 为什么我运行 `main.py` 或 `main_parallel.py` 时立即失败并提示 `config.yaml` 未找到？** A: 你需要在项目根目录（与 `main.py` 同级）**手动创建**一个 `config.yaml` 文件，并按照 配置说明 部分的格式填入你的 VLM LLM API 密钥和端点。
 
-**Q: 我遇到了 429 (Rate Limit Exceeded) 错误，该怎么办？** A: 这是因为你的总并发请求数超过了 API 限制。请参考 [关于并行处理和 429 错误](https://www.google.com/search?q=%23-关于并行处理和-429-错误-重要&authuser=2) 部分的说明：
+**Q: 我遇到了 429 (Rate Limit Exceeded) 错误，该怎么办？** A: 这是因为你的总并发请求数超过了 API 限制。请参考 关于并行处理和 429 错误 (重要) 部分的说明：
 
 1. **如果你使用 `main.py`**: 降低 `config.yaml` 中的 `max_concurrency` 值。
 2. **如果你使用 `main_parallel.py`**: 确保 `MAX_WORKERS` × `max_concurrency` 的乘积在你的 API 限制之内。建议优先降低 `MAX_WORKERS`（进程数）。

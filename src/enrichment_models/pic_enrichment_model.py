@@ -30,7 +30,7 @@ log = logging.getLogger(__name__)
 class VLMPictureEnrichmentModel(BaseEnrichmentModel):
     """
     一个 docling 增强模型，用于为 PictureItem 添加 VLM 生成的描述。
-    【已修改】: 使用 ThreadPoolExecutor 并行处理 VLM API 调用。
+    使用 ThreadPoolExecutor 并行处理 VLM API 调用。
     """
     
     def __init__(self, options: VLMEnrichmentPipelineOptions):
@@ -58,7 +58,7 @@ class VLMPictureEnrichmentModel(BaseEnrichmentModel):
 
     def _call_vlm_for_description(self, pil_image: Image.Image, prompt: str=VLM_PROMPT) -> str:
         """
-        使用 VLM (如 Qwen) API 为给定的 PIL 图像生成描述。
+        使用 VLM  API 为给定的 PIL 图像生成描述。
 
         Args:
             pil_image: 待描述的 PIL.Image.Image 对象。
@@ -74,6 +74,13 @@ class VLMPictureEnrichmentModel(BaseEnrichmentModel):
         try:
             # 1. 将 PIL Image 转换为 Base64
             buffered = BytesIO()
+            # 检查图像是否为 RGBA 模式（或其他带 Alpha 通道的模式）
+            if pil_image.mode in ("RGBA", "LA", "P"):
+                # 转换为 RGB 模式，丢弃 Alpha 通道
+                # 这通常会将透明背景变为白色
+                log.debug(f"检测到 {pil_image.mode} 图像，正在转换为 RGB...")
+                pil_image = pil_image.convert('RGB')
+                
             pil_image.save(buffered, format="JPEG")
             img_base64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
             

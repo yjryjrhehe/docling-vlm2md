@@ -3,3 +3,9 @@ VLM:
   base_url: "https://open.bigmodel.cn/api/paas/v4/"
   model: "glm-4v-plus-0111"
   max_concurrency: 5
+
+LLM:
+  api_key: "your_api_key"
+  base_url: "https://open.bigmodel.cn/api/paas/v4/"
+  model: "glm-4-flashx-250414"
+  max_concurrency: 5

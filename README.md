@@ -1,4 +1,4 @@
-# Docling-VLM2MD: 基于 Docling 和 VLM 的 PDF 增强转换器
+# Docling-VLM2MD: 基于 Docling 和 VLM、LLM 的  PDF 、WORD 文档增强转换器
 
 
 
